@@ -934,35 +934,45 @@ FcConfigAddRule (FcConfig	*config,
 static FcValue
 FcConfigPromote (FcValue v, FcValue u, FcValuePromotionBuffer *buf)
 {
-    if (v.type == FcTypeInteger)
+    switch (v.type)
     {
-	v.type = FcTypeDouble;
-	v.u.d = (double) v.u.i;
-    }
-    else if (v.type == FcTypeVoid && u.type == FcTypeMatrix)
-    {
-	v.u.m = &FcIdentityMatrix;
-	v.type = FcTypeMatrix;
-    }
-    else if (buf && v.type == FcTypeString && u.type == FcTypeLangSet)
-    {
-	v.u.l = FcLangSetPromote (v.u.s, buf);
-	v.type = FcTypeLangSet;
-    }
-    else if (buf && v.type == FcTypeVoid && u.type == FcTypeLangSet)
-    {
-	v.u.l = FcLangSetPromote (NULL, buf);
-	v.type = FcTypeLangSet;
-    }
-    else if (buf && v.type == FcTypeVoid && u.type == FcTypeCharSet)
-    {
-	v.u.c = FcCharSetPromote (buf);
-	v.type = FcTypeCharSet;
-    }
-    if (buf && v.type == FcTypeDouble && u.type == FcTypeRange)
-    {
-	v.u.r = FcRangePromote (v.u.d, buf);
-	v.type = FcTypeRange;
+    case FcTypeInteger:
+        v.type = FcTypeDouble;
+        v.u.d = (double) v.u.i;
+        break;
+    case FcTypeVoid:
+        if (u.type == FcTypeMatrix)
+        {
+            v.u.m = &FcIdentityMatrix;
+            v.type = FcTypeMatrix;
+        }
+        else if (u.type == FcTypeLangSet && buf)
+        {
+            v.u.l = FcLangSetPromote (NULL, buf);
+            v.type = FcTypeLangSet;
+        }
+        else if (u.type == FcTypeCharSet && buf)
+        {
+            v.u.c = FcCharSetPromote (buf);
+            v.type = FcTypeCharSet;
+        }
+        break;
+    case FcTypeString:
+        if (u.type == FcTypeLangSet && buf)
+        {
+            v.u.l = FcLangSetPromote (v.u.s, buf);
+            v.type = FcTypeLangSet;
+        }
+        break;
+    case FcTypeDouble:
+        if (u.type == FcTypeRange && buf)
+        {
+            v.u.r = FcRangePromote (v.u.d, buf);
+            v.type = FcTypeRange;
+        }
+        break;
+    default:
+        break;
     }
     return v;
 }
@@ -972,22 +982,50 @@ FcConfigCompareValue (const FcValue	*left_o,
 		      unsigned int      op_,
 		      const FcValue	*right_o)
 {
-    FcValue	left = FcValueCanonicalize(left_o);
-    FcValue	right = FcValueCanonicalize(right_o);
+    FcValue     left = FcValueCanonicalize(left_o);
+    FcValue     right = FcValueCanonicalize(right_o);
     FcBool	ret = FcFalse;
     FcOp	op = FC_OP_GET_OP (op_);
     int		flags = FC_OP_GET_FLAGS (op_);
-    FcValuePromotionBuffer buf1, buf2;
 
-    left = FcConfigPromote (left, right, &buf1);
-    right = FcConfigPromote (right, left, &buf2);
+    if (left.type != right.type)
+    {
+        FcValuePromotionBuffer buf1, buf2;
+        left = FcConfigPromote (left, right, &buf1);
+        right = FcConfigPromote (right, left, &buf2);
+    }
     if (left.type == right.type)
     {
 	switch (left.type) {
 	case FcTypeUnknown:
 	    break;	/* No way to guess how to compare for this object */
 	case FcTypeInteger:
-	    break;	/* FcConfigPromote prevents this from happening */
+	    switch ((int) op) {
+	    case FcOpEqual:
+	    case FcOpContains:
+	    case FcOpListing:
+		ret = left.u.i == right.u.i;
+		break;
+	    case FcOpNotEqual:
+	    case FcOpNotContains:
+		ret = left.u.i != right.u.i;
+		break;
+	    case FcOpLess:
+		ret = left.u.i < right.u.i;
+		break;
+	    case FcOpLessEqual:
+		ret = left.u.i <= right.u.i;
+		break;
+	    case FcOpMore:
+		ret = left.u.i > right.u.i;
+		break;
+	    case FcOpMoreEqual:
+		ret = left.u.i >= right.u.i;
+		break;
+	    default:
+		break;
+	    }
+	    break;
 	case FcTypeDouble:
 	    switch ((int) op) {
 	    case FcOpEqual:
