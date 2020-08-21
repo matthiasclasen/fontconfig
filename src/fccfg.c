@@ -982,188 +982,218 @@ FcConfigCompareValue (const FcValue	*left_o,
 		      unsigned int      op_,
 		      const FcValue	*right_o)
 {
-    FcValue     left = FcValueCanonicalize(left_o);
-    FcValue     right = FcValueCanonicalize(right_o);
+    FcValue     left;
+    FcValue     right;
     FcBool	ret = FcFalse;
     FcOp	op = FC_OP_GET_OP (op_);
     int		flags = FC_OP_GET_FLAGS (op_);
 
-    if (left.type != right.type)
+    if (left_o->type != right_o->type)
     {
+        left = FcValueCanonicalize(left_o);
+        right = FcValueCanonicalize(right_o);
         FcValuePromotionBuffer buf1, buf2;
         left = FcConfigPromote (left, right, &buf1);
         right = FcConfigPromote (right, left, &buf2);
+        left_o = &left;
+        right_o = &right;
     }
-    if (left.type == right.type)
+    if (left_o->type == right_o->type)
     {
-	switch (left.type) {
+	switch (left_o->type) {
 	case FcTypeUnknown:
 	    break;	/* No way to guess how to compare for this object */
 	case FcTypeInteger:
+        {
+            int li = left_o->u.i;
+            int ri = right_o->u.i;
 	    switch ((int) op) {
 	    case FcOpEqual:
 	    case FcOpContains:
 	    case FcOpListing:
-		ret = left.u.i == right.u.i;
+		ret = li == ri;
 		break;
 	    case FcOpNotEqual:
 	    case FcOpNotContains:
-		ret = left.u.i != right.u.i;
+		ret = li != ri;
 		break;
 	    case FcOpLess:
-		ret = left.u.i < right.u.i;
+		ret = li < ri;
 		break;
 	    case FcOpLessEqual:
-		ret = left.u.i <= right.u.i;
+		ret = li <= ri;
 		break;
 	    case FcOpMore:
-		ret = left.u.i > right.u.i;
+		ret = li > ri;
 		break;
 	    case FcOpMoreEqual:
-		ret = left.u.i >= right.u.i;
+		ret = li >= ri;
 		break;
 	    default:
 		break;
 	    }
 	    break;
+        }
 	case FcTypeDouble:
+        {
+            double ld = left_o->u.d;
+            double rd = right_o->u.d;
 	    switch ((int) op) {
 	    case FcOpEqual:
 	    case FcOpContains:
 	    case FcOpListing:
-		ret = left.u.d == right.u.d;
+		ret = ld == rd;
 		break;
 	    case FcOpNotEqual:
 	    case FcOpNotContains:
-		ret = left.u.d != right.u.d;
+		ret = ld != rd;
 		break;
 	    case FcOpLess:
-		ret = left.u.d < right.u.d;
+		ret = ld < rd;
 		break;
 	    case FcOpLessEqual:
-		ret = left.u.d <= right.u.d;
+		ret = ld <= rd;
 		break;
 	    case FcOpMore:
-		ret = left.u.d > right.u.d;
+		ret = ld > rd;
 		break;
 	    case FcOpMoreEqual:
-		ret = left.u.d >= right.u.d;
+		ret = ld >= rd;
 		break;
 	    default:
 		break;
 	    }
 	    break;
+        }
 	case FcTypeBool:
+        {
+            FcBool lb = left_o->u.b;
+            FcBool rb = right_o->u.b;
 	    switch ((int) op) {
 	    case FcOpEqual:
-		ret = left.u.b == right.u.b;
+		ret = lb == rb;
 		break;
 	    case FcOpContains:
 	    case FcOpListing:
-		ret = left.u.b == right.u.b || left.u.b >= FcDontCare;
+		ret = lb == rb || lb >= FcDontCare;
 		break;
 	    case FcOpNotEqual:
-		ret = left.u.b != right.u.b;
+		ret = lb != rb;
 		break;
 	    case FcOpNotContains:
-		ret = !(left.u.b == right.u.b || left.u.b >= FcDontCare);
+		ret = !(lb == rb || lb >= FcDontCare);
 		break;
 	    case FcOpLess:
-		ret = left.u.b != right.u.b && right.u.b >= FcDontCare;
+		ret = lb != rb && rb >= FcDontCare;
 		break;
 	    case FcOpLessEqual:
-		ret = left.u.b == right.u.b || right.u.b >= FcDontCare;
+		ret = lb == rb || rb >= FcDontCare;
 		break;
 	    case FcOpMore:
-		ret = left.u.b != right.u.b && left.u.b >= FcDontCare;
+		ret = lb != rb && lb >= FcDontCare;
 		break;
 	    case FcOpMoreEqual:
-		ret = left.u.b == right.u.b || left.u.b >= FcDontCare;
+		ret = lb == rb || lb >= FcDontCare;
 		break;
 	    default:
 		break;
 	    }
 	    break;
+        }
 	case FcTypeString:
+        {
+            const FcChar8 *ls = FcValueString (left_o);
+            const FcChar8 *rs = FcValueString (right_o);
 	    switch ((int) op) {
 	    case FcOpEqual:
 	    case FcOpListing:
 		if (flags & FcOpFlagIgnoreBlanks)
-		    ret = FcStrCmpIgnoreBlanksAndCase (left.u.s, right.u.s) == 0;
+		    ret = FcStrCmpIgnoreBlanksAndCase (ls, rs) == 0;
 		else
-		    ret = FcStrCmpIgnoreCase (left.u.s, right.u.s) == 0;
+		    ret = FcStrCmpIgnoreCase (ls, rs) == 0;
 		break;
 	    case FcOpContains:
-		ret = FcStrStrIgnoreCase (left.u.s, right.u.s) != 0;
+		ret = FcStrStrIgnoreCase (ls, rs) != 0;
 		break;
 	    case FcOpNotEqual:
 		if (flags & FcOpFlagIgnoreBlanks)
-		    ret = FcStrCmpIgnoreBlanksAndCase (left.u.s, right.u.s) != 0;
+		    ret = FcStrCmpIgnoreBlanksAndCase (ls, rs) != 0;
 		else
-		    ret = FcStrCmpIgnoreCase (left.u.s, right.u.s) != 0;
+		    ret = FcStrCmpIgnoreCase (ls, rs) != 0;
 		break;
 	    case FcOpNotContains:
-		ret = FcStrStrIgnoreCase (left.u.s, right.u.s) == 0;
+		ret = FcStrStrIgnoreCase (ls, rs) == 0;
 		break;
 	    default:
 		break;
 	    }
 	    break;
+        }
 	case FcTypeMatrix:
+        {
 	    switch ((int) op) {
 	    case FcOpEqual:
 	    case FcOpContains:
 	    case FcOpListing:
-		ret = FcMatrixEqual (left.u.m, right.u.m);
+		ret = FcMatrixEqual (left_o->u.m, right_o->u.m);
 		break;
 	    case FcOpNotEqual:
 	    case FcOpNotContains:
-		ret = !FcMatrixEqual (left.u.m, right.u.m);
+		ret = !FcMatrixEqual (left_o->u.m, right_o->u.m);
 		break;
 	    default:
 		break;
 	    }
 	    break;
+        }
 	case FcTypeCharSet:
+        {
+            const FcCharSet *lc = FcValueCharSet (left_o);
+            const FcCharSet *rc = FcValueCharSet (right_o);
 	    switch ((int) op) {
 	    case FcOpContains:
 	    case FcOpListing:
 		/* left contains right if right is a subset of left */
-		ret = FcCharSetIsSubset (right.u.c, left.u.c);
+		ret = FcCharSetIsSubset (rc, lc);
 		break;
 	    case FcOpNotContains:
 		/* left contains right if right is a subset of left */
-		ret = !FcCharSetIsSubset (right.u.c, left.u.c);
+		ret = !FcCharSetIsSubset (rc, lc);
 		break;
 	    case FcOpEqual:
-		ret = FcCharSetEqual (left.u.c, right.u.c);
+		ret = FcCharSetEqual (lc, rc);
 		break;
 	    case FcOpNotEqual:
-		ret = !FcCharSetEqual (left.u.c, right.u.c);
+		ret = !FcCharSetEqual (lc, rc);
 		break;
 	    default:
 		break;
 	    }
 	    break;
+        }
 	case FcTypeLangSet:
+        {
+            const FcLangSet *lc = FcValueLangSet (left_o);
+            const FcLangSet *rc = FcValueLangSet (right_o);
 	    switch ((int) op) {
 	    case FcOpContains:
 	    case FcOpListing:
-		ret = FcLangSetContains (left.u.l, right.u.l);
+		ret = FcLangSetContains (lc, rc);
 		break;
 	    case FcOpNotContains:
-		ret = !FcLangSetContains (left.u.l, right.u.l);
+		ret = !FcLangSetContains (lc, rc);
 		break;
 	    case FcOpEqual:
-		ret = FcLangSetEqual (left.u.l, right.u.l);
+		ret = FcLangSetEqual (lc, rc);
 		break;
 	    case FcOpNotEqual:
-		ret = !FcLangSetEqual (left.u.l, right.u.l);
+		ret = !FcLangSetEqual (lc, rc);
 		break;
 	    default:
 		break;
 	    }
 	    break;
+        }
 	case FcTypeVoid:
 	    switch ((int) op) {
 	    case FcOpEqual:
@@ -1180,19 +1210,23 @@ FcConfigCompareValue (const FcValue	*left_o,
 	    case FcOpEqual:
 	    case FcOpContains:
 	    case FcOpListing:
-		ret = left.u.f == right.u.f;
+		ret = left_o->u.f == right_o->u.f;
 		break;
 	    case FcOpNotEqual:
 	    case FcOpNotContains:
-		ret = left.u.f != right.u.f;
+		ret = left_o->u.f != right_o->u.f;
 		break;
 	    default:
 		break;
 	    }
 	    break;
 	case FcTypeRange:
-	    ret = FcRangeCompare (op, left.u.r, right.u.r);
+        {
+            const FcRange *lr = FcValueRange (left_o);
+            const FcRange *rr = FcValueRange (right_o);
+	    ret = FcRangeCompare (op, lr, rr);
 	    break;
+        }
 	}
     }
     else
